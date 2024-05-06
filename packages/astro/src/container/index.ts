@@ -1,6 +1,7 @@
 import type {
 	AstroConfig,
 	ComponentInstance,
+	MiddlewareHandler,
 	RouteData,
 	RuntimeMode,
 	SSRLoadedRenderer,
@@ -24,13 +25,19 @@ type ContainerOptions = {
 	slots?: string[];
 	request?: Request;
 	params?: string[];
+	locals?: App.Locals;
+	status?: number;
 };
 
 /**
  * @param renderers
  * @param config
  */
-function createContainerManifest(renderers: SSRLoadedRenderer[], config: AstroConfig): SSRManifest {
+function createContainerManifest(
+	renderers: SSRLoadedRenderer[],
+	config: AstroConfig,
+	middleware?: MiddlewareHandler
+): SSRManifest {
 	let i18nManifest: SSRManifestI18n | undefined = undefined;
 	if (config?.i18n) {
 		i18nManifest = {
@@ -41,6 +48,9 @@ function createContainerManifest(renderers: SSRLoadedRenderer[], config: AstroCo
 			domainLookupTable: {},
 		};
 	}
+	const defaultMiddleware: MiddlewareHandler = (_, next) => {
+		return next();
+	};
 	return {
 		trailingSlash: config?.trailingSlash,
 		buildFormat: config?.build.format,
@@ -58,9 +68,7 @@ function createContainerManifest(renderers: SSRLoadedRenderer[], config: AstroCo
 		inlinedScripts: new Map(),
 		i18n: i18nManifest,
 		checkOrigin: config?.experimental.security?.csrfProtection?.origin ?? false,
-		middleware(_, next) {
-			return next();
-		},
+		middleware: middleware ?? defaultMiddleware,
 	};
 }
 
@@ -69,14 +77,15 @@ type AstroContainerOptions = {
 	streaming: boolean;
 	renderers: SSRLoadedRenderer[];
 	astroConfig: AstroUserConfig;
+	middleware: MiddlewareHandler;
 };
 
 export class unstable_AstroContainer {
 	#pipeline: TestPipeline;
 	#config: AstroConfig;
 
-	constructor(
-		mode: RuntimeMode,
+	private constructor(
+		mode: RuntimeMode = 'development',
 		streaming: boolean,
 		renderers: SSRLoadedRenderer[],
 		config: AstroConfig
@@ -87,7 +96,7 @@ export class unstable_AstroContainer {
 				level: 'info',
 				dest: nodeLogDestination,
 			}),
-			mode: 'development',
+			mode,
 			manifest: createContainerManifest(renderers, config),
 			streaming,
 			serverLike: isServerLikeOutput(config),
@@ -115,10 +124,11 @@ export class unstable_AstroContainer {
 		const renderContext = RenderContext.create({
 			pipeline: this.#pipeline,
 			routeData: this.createRoute(url, params),
-			status: 200,
+			status: options?.status ?? 200,
 			middleware: this.#pipeline.middleware,
 			request,
 			pathname: url.pathname,
+			locals: options?.locals ?? {},
 		});
 
 		const response = await renderContext.render(component);
