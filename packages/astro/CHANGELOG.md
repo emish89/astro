@@ -1,5 +1,11 @@
 # astro
 
+## 4.8.1
+
+### Patch Changes
+
+- [#10975](https://github.com/withastro/astro/pull/10975) [`6b640b3`](https://github.com/withastro/astro/commit/6b640b3bcb74d21903d303e268ff8ecef90097e7) Thanks [@bluwy](https://github.com/bluwy)! - Passes the scoped style attribute or class to the `<picture>` element in the `<Picture />` component so scoped styling can be applied to the `<picture>` element
+
 ## 4.8.0
 
 ### Minor Changes
